@@ -1,0 +1,21 @@
+﻿@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage
+@{
+    var topCategories = ViewBag.TopCategories as List<string>;
+}
+
+<h2>Illat teszt eredménye</h2>
+
+@if (topCategories != null && topCategories.Count > 0)
+{
+    <p>A kérdéseid alapján a következő <strong>2</strong> kategóriát javasoljuk neked:</p>
+    <ul>
+        @foreach (var cat in topCategories)
+        {
+            <li>@cat</li>
+        }
+    </ul>
+}
+else
+{
+    <p>Sajnos nem sikerült ajánlást készíteni a válaszaid alapján.</p>
+}

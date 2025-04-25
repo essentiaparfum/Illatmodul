@@ -1,0 +1,31 @@
+﻿@* Views/Item/Kerdes.cshtml *@
+@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage<Illamdul.Dnn.Illatmodul.Models.QuestionModel>
+
+<h3>Kérdés @Model.QuestionNumber</h3>
+<p>@Model.QuestionText</p>
+
+@if (Model.Answers != null && Model.Answers.Count > 0)
+{
+    <form method="post" action="@Url.Action("Kerdes","Item", new { id = Model.QuestionNumber + 1, ctl = "Kerdes" })">
+        @{
+            var idx = 0;
+        }
+        @foreach (var answer in Model.Answers)
+        {
+            <div>
+                <input type="radio"
+                       name="valasz"
+                       id="valasz_@idx"
+                       value="@answer" required />
+                <label for="valasz_@idx">@answer</label>
+            </div>
+            idx++;
+        }
+        <br />
+        <button type="submit" class="btn btn-primary">Tovább</button>
+    </form>
+}
+else
+{
+    <p>A kérdések véget értek.</p>
+}
