@@ -1,7 +1,16 @@
 ﻿@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage
 
-<div class="illat-intro">
-    <h2>Illatajánló Teszt</h2>
-    <p>Töltsd ki a kérdőívet, és megtaláljuk a hozzád legjobban illő parfüm típusokat!</p>
-    <a class="btn btn-primary" href="@Url.Action("Kerdes", "Item", new { id = 1, ctl = "Kerdes" })">Irány a teszt!</a>
+<div class="illat-intro" style="text-align: center; padding: 60px 20px; max-width: 700px; margin: 0 auto;">
+    <h1 style="font-size: 2.5em; margin-bottom: 20px;">🌸 Illatajánló Teszt</h1>
+
+    <p style="font-size: 1.2em; color: #666; margin-bottom: 40px;">
+        Szeretnél egy parfümöt, ami igazán kifejezi a személyiségedet? <br />
+        Töltsd ki rövid kérdőívünket, és segítünk megtalálni a hozzád leginkább illő illatkategóriát!
+    </p>
+
+    <a class="dnnPrimaryAction"
+       href="@Url.Action("Kerdes", "Item", new { id = 1, ctl = "Kerdes" })"
+       style="font-size: 1.2em; padding: 15px 30px; text-decoration: none; border-radius: 8px;">
+        🚀 Irány a teszt!
+    </a>
 </div>

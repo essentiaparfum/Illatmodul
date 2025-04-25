@@ -112,6 +112,7 @@
     <Compile Include="Models\PerfumeRecommendation.cs" />
     <Compile Include="Models\QuestionModel.cs" />
     <Compile Include="Models\Settings.cs" />
+    <Compile Include="Models\UserProfileData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
