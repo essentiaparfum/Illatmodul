@@ -140,6 +140,7 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
             // A) Válaszok előkeresése
             var answers = Session["IllatValaszok"] as List<string> ?? new List<string>();
 
+
             // B) Alkategóriák listája
             var categories = new[]
             {
