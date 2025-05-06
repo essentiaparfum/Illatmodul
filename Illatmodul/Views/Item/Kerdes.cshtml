@@ -1,0 +1,53 @@
+﻿@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage<Illamdul.Dnn.Illatmodul.Models.QuestionModel>
+
+@{
+    int totalQuestions = 7;
+    int current = Model.QuestionNumber;
+    double percentage = (double)current / totalQuestions * 100;
+}
+
+<div class="dnnForm dnnClear kerdesek">
+
+    <h2>Kérdés @Model.QuestionNumber / @totalQuestions</h2>
+
+    <!-- Progress bar -->
+    <div class="progressBar" style="background-color: #e0e0e0; height: 20px; border-radius: 10px; margin-bottom: 25px; overflow: hidden;">
+        <div class="progressBarLine" style="height: 100%; background-color: #0073aa; width: @percentage%; transition: width 0.3s;"></div>
+    </div>
+
+    <p style="font-size: 1.2em; margin-bottom: 20px;">@Model.QuestionText</p>
+
+    @if (Model.Answers != null && Model.Answers.Count > 0)
+    {
+        <form method="post" action="@Url.Action("Kerdes", "Item", new { id = Model.QuestionNumber + 1, ctl = "Kerdes" })">
+            <div class="valaszok" style="display: flex; flex-direction: column; gap: 15px;">
+                @{
+                    var idx = 0;
+                }
+                @foreach (var answer in Model.Answers)
+                {
+                    <div class="valasz" style="background: #f8f8f8; border: 1px solid #ccc; padding: 10px 15px; border-radius: 6px;">
+                        <input type="radio"
+                               name="valasz"
+                               id="valasz_@idx"
+                               value="@answer"
+                               required
+                               style="margin-right: 10px;" />
+                        <label for="valasz_@idx" style="cursor: pointer;">@answer</label>
+                    </div>
+                    idx++;
+                }
+            </div>
+
+            <div class="tovabbGomb" style="margin-top: 30px; text-align: right;">
+                <button type="submit" class="dnnPrimaryAction">Tovább →</button>
+            </div>
+        </form>
+    }
+    else
+    {
+        <div class="dnnFormMessage dnnFormWarning kerdesekVege">
+            A kérdések véget értek.
+        </div>
+    }
+</div>

@@ -1,33 +1,16 @@
-﻿@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage<IEnumerable< Illamdul.Dnn.Illatmodul.Models.Item >>
+﻿@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage
 
-@using System.Text.RegularExpressions
-@using DotNetNuke.Web.Mvc.Helpers
+<div class="illat-intro">
+    <h1>Illatajánló Teszt</h1>
 
+    <p>
+        Szeretnél egy parfümöt, ami igazán kifejezi a személyiségedet? <br />
+        Töltsd ki rövid kérdőívünket, és segítünk megtalálni a hozzád leginkább illő illatkategóriát!
+    </p>
 
-<div id="Items-@Dnn.ModuleContext.ModuleId">
-    @if (Model.Count() == 0)
-    {
-        <p>@Dnn.LocalizeString("NoItems")</p>
-    }
-    else
-    {
-        <ul class="tm_tl">
-            @foreach (var item in Model)
-            {
-                <li class="tm_t">
-                    <h3>@item.ItemName</h3>
-                    <div class="tm_td">@item.ItemDescription</div>
-                    @{
-                        if (Dnn.ModuleContext.IsEditable)
-                        {
-                            <div>
-                                <a href="@Url.Action("Edit", "Item", new {ctl = "Edit", itemId = item.ItemId})">@Dnn.LocalizeString("EditItem")</a>
-                                <a href="@Url.Action("Delete", "Item", new {itemId = item.ItemId})">@Dnn.LocalizeString("DeleteItem")</a>
-                            </div>
-                        }
-                    }
-                </li>
-            }
-        </ul>
-    }
+    <a class="dnnPrimaryAction"
+       href="@Url.Action("Kerdes", "Item", new { id = 1, ctl = "Kerdes" })"
+       >
+        Irány a teszt!
+    </a>
 </div>

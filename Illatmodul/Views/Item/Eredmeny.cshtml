@@ -1,0 +1,49 @@
+﻿@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage
+@{
+    var topCategories = ViewBag.TopCategories as List<string> ?? new List<string>();
+
+    // Mapping: megjelenített név → link végződés
+    var linkMap = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
+{
+        { "Fás illatok", "fc3a1s-illatok" },
+        { "Friss illatok", "friss-illatok" },
+        { "Fűszeres illatok", "fc5b1szeres-illatok" },
+        { "Púderes illatok", "pc3baderes-illatok" },
+        { "Édes illatok", "c3a9des-illatok" },
+        { "Gyümölcsös illatok", "gyc3bcmc3b6lcsc3b6s-illatok" },
+        { "Orientális illatok", "orientc3a1lis-illatok" },
+        { "Virágos illatok", "virc3a1gos-illatok" }
+    };
+
+    string baseUrl = "http://rendfejl1011.northeurope.cloudapp.azure.com:8080/Termékek/";
+}
+
+<div class="dnnForm dnnClear modulEredmeny">
+    <h2>Illat teszt eredménye</h2>
+
+    @if (topCategories.Count > 0)
+    {
+        <p>A válaszaid alapján a következő illatkategóriákat ajánljuk:</p>
+
+        <div class="eredmenyekContainer">
+            @foreach (var cat in topCategories)
+            {
+                string urlPart = linkMap.ContainsKey(cat) ? linkMap[cat] : "";
+                string link = baseUrl + urlPart;
+
+                <a href="@link" target="_blank">
+                    <div class="eredmeny">
+                        <span>@cat</span>
+                        <div class="kattints">Kattints a hozzá tartozó termékekhez</div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="dnnFormMessage dnnFormWarning eredmenyNincs">
+            Sajnos nem tudtunk ajánlást készíteni a válaszaid alapján.
+        </div>
+    }
+</div>
