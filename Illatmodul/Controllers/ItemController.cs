@@ -210,8 +210,8 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
                 var ctx = DotNetNuke.Data.DataContext.Instance();
                 var repo = ctx.GetRepository<Illamdul.Dnn.Illatmodul.Models.UserProfileData>();
 
-                int topId = 67; // TopIllatkategoria
-                int secId = 68; // SecIllatkategoria
+                int topId = 66; // TopIllatkategoria
+                int secId = 67; // SecIllatkategoria
 
                 if (!string.IsNullOrEmpty(top1))
                 {
