@@ -1,5 +1,4 @@
-﻿// Models/QuestionModel.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Illamdul.Dnn.Illatmodul.Models
 {
