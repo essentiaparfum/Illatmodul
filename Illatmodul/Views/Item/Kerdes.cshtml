@@ -1,59 +1,46 @@
-﻿@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage<Illamdul.Dnn.Illatmodul.Models.QuestionModel>
+﻿@using Illamdul.Dnn.Illatmodul.Models
+@inherits DotNetNuke.Web.Mvc.Framework.DnnWebViewPage<QuestionModel>
 
 @{
     // 1) Dinamikus kérdésszám a ViewBag-ből
-    int totalQuestions = 1;
-    if (ViewBag.TotalQuestions != null)
-    {
-        totalQuestions = (int)ViewBag.TotalQuestions;
-    }
-
-    // 2) Jelenlegi kérdés és százalék
+    int total = ViewBag.TotalQuestions as int? ?? 1;
     int current = Model.QuestionNumber;
-    double percentage = totalQuestions > 0
-        ? ((double)current / totalQuestions) * 100
-        : 0;
-
-    // 3) Következő kérdés azonosítója
-    int nextId = Model.QuestionNumber + 1;
+    double pct = total > 0 ? (double)current / total * 100 : 0;
+    int nextId = current + 1;
 }
 
 <div class="dnnForm dnnClear kerdesek">
-
-    <h2>Kérdés @current / @totalQuestions</h2>
+    <h2>Kérdés @current / @total</h2>
 
     <!-- Progress bar -->
     <div class="progressBar"
-         style="background-color:#e0e0e0;height:20px;
-                border-radius:10px;margin-bottom:25px;overflow:hidden;">
+         style="background:#e0e0e0;height:20px;border-radius:10px;overflow:hidden;">
         <div class="progressBarLine"
-             style="height:100%;background-color:#0073aa;
-                    width:@percentage%;transition:width 0.3s;">
+             style="height:100%;background:#0073aa;width:@pct%;transition:width 0.3s;">
         </div>
     </div>
 
     <p style="font-size:1.2em;margin-bottom:20px;">@Model.QuestionText</p>
 
-    @* Ha vannak válaszok, form, különben üzenet *@
     @if (Model.Answers != null && Model.Answers.Count > 0)
     {
-        <form method="post" action="@Url.Action("Kerdes","Item", new { id = nextId, ctl = "Kerdes" })">
+        <!-- ha nincs action, a form a jelenlegi URL-re POST-ol (benne mid és id) -->
+        <form method="post">
             <div class="valaszok" style="display:flex;flex-direction:column;gap:15px;">
-                @* for-ciklussal, idx++ nélkül *@
-                @for (int idx = 0; idx < Model.Answers.Count; idx++)
+                @for (int i = 0; i < Model.Answers.Count; i++)
                 {
-                    var answer = Model.Answers[idx];
+                    var ans = Model.Answers[i];
                     <div class="valasz"
                          style="background:#f8f8f8;border:1px solid #ccc;
                                 padding:10px 15px;border-radius:6px;">
                         <input type="radio"
                                name="valasz"
-                               id="valasz_@idx"
-                               value="@answer"
+                               id="valasz_@i"
+                               value="@(ans.ValueCode ?? ans.AnswerText)"
                                required
                                style="margin-right:10px;" />
-                        <label for="valasz_@idx" style="cursor:pointer;">
-                            @answer
+                        <label for="valasz_@i" style="cursor:pointer;">
+                            @ans.AnswerText
                         </label>
                     </div>
                 }
