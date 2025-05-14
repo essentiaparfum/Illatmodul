@@ -9,6 +9,7 @@ using DotNetNuke.Entities.Users;
 using DotNetNuke.Web.Mvc.Framework.Controllers;
 using Illamdul.Dnn.Illatmodul.Models;
 
+
 namespace Illamdul.Dnn.Illatmodul.Controllers
 {
     public class ItemController : DnnController
@@ -56,22 +57,40 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
         [HttpPost]
         public ActionResult Kerdes(int id = 1, string valasz = null)
         {
-            const string key = "Illatmodul_Valaszok";
-            var list = Session[key] as List<string> ?? new List<string>();
+            const string sessionKey = "Illatmodul_Valaszok";
+            // 1) Session-be gyűjtjük
+            var list = Session[sessionKey] as List<string> ?? new List<string>();
 
             if (!string.IsNullOrEmpty(valasz))
             {
+                // 1.a) Session
                 list.Add(valasz);
-                Session[key] = list;
+                Session[sessionKey] = list;
+
+                // 1.b) DB-be mentés minden válaszkódhoz
+                var userId = UserController.Instance.GetCurrentUserInfo().UserID;
+                using (var ctx = DataContext.Instance())
+                {
+                    var answerRepo = ctx.GetRepository<PerfumeUserAnswer>();
+                    answerRepo.Insert(new PerfumeUserAnswer
+                    {
+                        ModuleId = ModuleContext.ModuleId,
+                        UserID = userId,
+                        QuestionID = id,
+                        AnswerValue = valasz,
+                        CreatedOn = DateTime.Now
+                    });
+                }
             }
 
-            var next = id + 1;
+            // 2) Következő kérdés számítása
+            int next = id + 1;
             using (var ctx = DataContext.Instance())
             {
-                var total = ctx.GetRepository<PerfumeQuestion>().Get().Count();
+                int total = ctx.GetRepository<PerfumeQuestion>().Get().Count();
                 if (next <= total)
                 {
-                    // IDE KELL A REDIRECT
+                    // Ha még maradt kérdés, irány a következő
                     string url = Globals.NavigateURL(
                         PortalSettings.ActiveTab.TabID,
                         "Kerdes",
@@ -82,7 +101,7 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
                 }
             }
 
-            // ha nincs több kérdés
+            // 3) Ha elfogytak a kérdések, eredményre ugrunk
             string eredmenyUrl = Globals.NavigateURL(
                 PortalSettings.ActiveTab.TabID,
                 "Eredmeny",

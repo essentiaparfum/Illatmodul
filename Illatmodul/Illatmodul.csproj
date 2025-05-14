@@ -190,9 +190,7 @@
       <HintPath>..\packages\Microsoft.CodeAnalysis.Razor.2.3.0\lib\net46\Microsoft.CodeAnalysis.Razor.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
-
     <Reference Include="System.Data.Linq" />
-
     <Reference Include="Microsoft.DotNet.PlatformAbstractions, Version=2.1.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.DotNet.PlatformAbstractions.2.1.0\lib\net45\Microsoft.DotNet.PlatformAbstractions.dll</HintPath>
     </Reference>
@@ -410,7 +408,6 @@
     <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
     </Reference>
-
     <Reference Include="System.Web.DynamicData" />
     <Reference Include="System.Web.Entity" />
     <Reference Include="System.Web.ApplicationServices" />
@@ -486,6 +483,7 @@
     <Compile Include="Models\PerfumeAnswer.cs" />
     <Compile Include="Models\PerfumeQuestion.cs" />
     <Compile Include="Models\PerfumeRecommendation.cs" />
+    <Compile Include="Models\PerfumeUserAnswer.cs" />
     <Compile Include="Models\QuestionModel.cs" />
     <Compile Include="Models\Settings.cs" />
     <Compile Include="Models\UserProfileData.cs" />
