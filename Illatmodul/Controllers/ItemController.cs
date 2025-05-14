@@ -53,25 +53,33 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
             }
         }
 
-        // 3) POST Kérdés – ValueCode-okat gyűjtünk Session-be, aztán lapozunk
         [HttpPost]
         public ActionResult Kerdes(int id = 1, string valasz = null)
         {
             const string sessionKey = "Illatmodul_Valaszok";
-            // 1) Session-be gyűjtjük
-            var list = Session[sessionKey] as List<string> ?? new List<string>();
+            var userId = UserController.Instance.GetCurrentUserInfo().UserID;
 
-            if (!string.IsNullOrEmpty(valasz))
+            using (var ctx = DataContext.Instance())
             {
-                // 1.a) Session
-                list.Add(valasz);
-                Session[sessionKey] = list;
+                var answerRepo = ctx.GetRepository<PerfumeUserAnswer>();
 
-                // 1.b) DB-be mentés minden válaszkódhoz
-                var userId = UserController.Instance.GetCurrentUserInfo().UserID;
-                using (var ctx = DataContext.Instance())
+                // Ha ez az 1. kérdés, töröljük a korábbi válaszokat (DB-ből és Session-ből)
+                if (id == 1)
                 {
-                    var answerRepo = ctx.GetRepository<PerfumeUserAnswer>();
+                    answerRepo.Delete("WHERE ModuleId = @0 AND UserID = @1",
+                                      ModuleContext.ModuleId, userId);
+                    Session.Remove(sessionKey);
+                }
+
+                // Ha van új válasz, elmentjük Session-be és DB-be
+                if (!string.IsNullOrEmpty(valasz))
+                {
+                    // 1.a) Session
+                    var list = Session[sessionKey] as List<string> ?? new List<string>();
+                    list.Add(valasz);
+                    Session[sessionKey] = list;
+
+                    // 1.b) DB-be
                     answerRepo.Insert(new PerfumeUserAnswer
                     {
                         ModuleId = ModuleContext.ModuleId,
@@ -111,69 +119,63 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
         }
 
 
+
         // 4) Eredmény – pontozás a ValueCode alapján + profilba mentés
         public ActionResult Eredmeny()
         {
             try
             {
-                // 1) Sessionből előzőleg gyűjtött ValueCode-ok
-                var answers = Session["Illatmodul_Valaszok"] as List<string>
-                              ?? new List<string>();
+                // 1) Aktuális felhasználó
+                var userId = UserController.Instance.GetCurrentUserInfo().UserID;
+                List<string> answerCodes;
 
-                // 2) Előre definiált kategóriák
-                var categories = new[]
+                using (var ctx = DataContext.Instance())
                 {
-                    "Fás illatok","Friss illatok","Fűszeres illatok","Púderes illatok",
-                    "Édes illatok","Gyümölcsös illatok","Orientális illatok","Virágos illatok"
-                };
+                    // 2) Lekérdezzük a PerfumeUserAnswer táblából a válaszokat
+                    var answerRepo = ctx.GetRepository<PerfumeUserAnswer>();
+                    var answers = answerRepo
+                        .Find("WHERE ModuleId = @0 AND UserID = @1 ORDER BY QuestionID",
+                              ModuleContext.ModuleId, userId)
+                        .ToList();
 
-                // 3) Inicializáljuk a pontszámlálót
-                var scores = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
-                foreach (var cat in categories)
-                    scores[cat] = 0;
+                    answerCodes = answers.Select(a => a.AnswerValue).ToList();
 
-                // 4) Csak akkor adunk +1-et, ha a beküldött kód megegyezik egy kategóriával
-                foreach (var code in answers)
-                {
-                    if (!string.IsNullOrEmpty(code) && scores.ContainsKey(code))
-                        scores[code]++;
-                }
-
-                // 5) Két legtöbb pontot kapott kategória kiválasztása
-                string top1 = null, top2 = null;
-                int max1 = -1, max2 = -1;
-                foreach (var kvp in scores)
-                {
-                    int pts = kvp.Value;
-                    if (pts > max1)
+                    // 3) Pontozás előre definiált kategóriák szerint
+                    var categories = new[]
                     {
-                        max2 = max1; top2 = top1;
-                        max1 = pts; top1 = kvp.Key;
-                    }
-                    else if (pts > max2)
+                "Fás illatok","Friss illatok","Fűszeres illatok","Púderes illatok",
+                "Édes illatok","Gyümölcsös illatok","Orientális illatok","Virágos illatok"
+            };
+                    var scores = categories
+                        .ToDictionary(c => c, c => 0, StringComparer.InvariantCultureIgnoreCase);
+                    foreach (var code in answerCodes)
                     {
-                        max2 = pts; top2 = kvp.Key;
+                        if (!string.IsNullOrEmpty(code) && scores.ContainsKey(code))
+                            scores[code]++;
                     }
+
+                    // 4) A két legtöbb pontot kapott kategória
+                    var topCategories = scores
+                        .OrderByDescending(kvp => kvp.Value)
+                        .Take(2)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
+
+                    // 5) Mentés a felhasználó profiljába
+                    var profileRepo = ctx.GetRepository<UserProfileData>();
+                    SaveProfileValue(profileRepo, userId, 67, topCategories.ElementAtOrDefault(0));
+                    SaveProfileValue(profileRepo, userId, 68, topCategories.ElementAtOrDefault(1));
+
+                    
+                    ViewBag.TopCategories = topCategories;
                 }
 
-                // 6) Mentés a felhasználó profiljába
-                var user = UserController.Instance.GetCurrentUserInfo();
-                var userId = user.UserID;
-                using (var db = DataContext.Instance())
-                {
-                    var repo = db.GetRepository<UserProfileData>();
-                    SaveProfileValue(repo, userId, 45, top1);
-                    SaveProfileValue(repo, userId, 46, top2);
-                }
-
-                // 7) Nézetnek átadott lista
-                var result = new List<string>();
-                if (!string.IsNullOrEmpty(top1)) result.Add(top1);
-                if (!string.IsNullOrEmpty(top2)) result.Add(top2);
-                ViewBag.TopCategories = result;
-
-                // Session törlése
+                // 6) (Opcionális) ürítjük a sessiont is
                 Session.Remove("Illatmodul_Valaszok");
+
+                // 7) Nézetnek átadott teljes válaszlista (ha szükséges)
+                ViewBag.AllAnswers = answerCodes;
+
                 return View("Eredmeny");
             }
             catch (Exception ex)
@@ -186,7 +188,7 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
             }
         }
 
-        // Segédfüggvény a profilérték mentéséhez
+        // Segédfüggvény a profilérték mentéséhez (marad változatlan)
         private void SaveProfileValue(
             IRepository<UserProfileData> repo,
             int userId,
@@ -221,4 +223,5 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
             }
         }
     }
+
 }

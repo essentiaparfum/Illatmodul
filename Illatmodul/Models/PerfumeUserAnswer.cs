@@ -1,12 +1,10 @@
 ﻿using System;
 using DotNetNuke.ComponentModel.DataAnnotations;
-using DotNetNuke.Common.Utilities;   
 
 namespace Illamdul.Dnn.Illatmodul.Models
 {
     [TableName("PerfumeUserAnswer")]
     [PrimaryKey("AnswerID", AutoIncrement = true)]
-    [Cacheable("PerfumeUserAnswer", CacheItemPriority.Default, 20)]
     [Scope("ModuleId")]
     public class PerfumeUserAnswer
     {
