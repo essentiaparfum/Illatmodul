@@ -1,5 +1,4 @@
-﻿// Models/QuestionModel.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Illamdul.Dnn.Illatmodul.Models
 {
@@ -7,6 +6,8 @@ namespace Illamdul.Dnn.Illatmodul.Models
     {
         public int QuestionNumber { get; set; }
         public string QuestionText { get; set; }
-        public List<string> Answers { get; set; }
+        // most már PerfumeAnswer-eket tartalmazunk
+        public List<PerfumeAnswer> Answers { get; set; }
     }
 }
+

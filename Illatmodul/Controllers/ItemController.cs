@@ -1,22 +1,20 @@
-﻿// Controllers/ItemController.cs
-
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Mvc;
-using Illamdul.Dnn.Illatmodul.Models;
 using DotNetNuke.Common;
-using DotNetNuke.Entities.Users;
+using DotNetNuke.Data;
 using DotNetNuke.Entities.Profile;
-using DotNetNuke.Entities.Tabs;
+using DotNetNuke.Entities.Users;
 using DotNetNuke.Web.Mvc.Framework.Controllers;
+using Illamdul.Dnn.Illatmodul.Models;
+
 
 namespace Illamdul.Dnn.Illatmodul.Controllers
 {
     public class ItemController : DnnController
     {
-        // 1) Alap nézet (Index)
+        // 1) Alap nézet
         public ActionResult Index()
         {
             return View();
@@ -25,258 +23,205 @@ namespace Illamdul.Dnn.Illatmodul.Controllers
         // 2) GET Kérdés
         public ActionResult Kerdes(int id = 1)
         {
-            var questions = new List<QuestionModel>
+            using (var ctx = DataContext.Instance())
             {
-                new QuestionModel {
-                    QuestionNumber = 1,
-                    QuestionText   = "Milyen alkalomra keresel illatot?",
-                    Answers        = new List<string>
-                    {
-                        "Minden napra", "Elegáns eseményre", "Munkahelyre",
-                        "Esti programra", "Ajándéknak"
-                    }
-                },
-                new QuestionModel {
-                    QuestionNumber = 2,
-                    QuestionText   = "Milyen hatást szeretnél kelteni az illattal?",
-                    Answers        = new List<string>
-                    {
-                        "Enyhe, friss", "Kellemesen észrevehető",
-                        "Erőteljes, karakteres"
-                    }
-                },
-                new QuestionModel {
-                    QuestionNumber = 3,
-                    QuestionText   = "Melyik illatok tetszenek inkább?",
-                    Answers        = new List<string>
-                    {
-                        "Friss, citrusos", "Virágos", "Édes (vanília, karamell)",
-                        "Meleg, fűszeres", "Nem tudom / segítsetek választani"
-                    }
-                },
-                new QuestionModel {
-                    QuestionNumber = 4,
-                    QuestionText   = "Mikor használnád leginkább?",
-                    Answers        = new List<string>
-                    {
-                        "Tavasz", "Nyár", "Ősz", "Tél", "Egész évben"
-                    }
-                },
-                new QuestionModel {
-                    QuestionNumber = 5,
-                    QuestionText   = "Melyik stílus áll hozzád közel?",
-                    Answers        = new List<string>
-                    {
-                        "Sportos", "Elegáns", "Romantikus", "Fiatalos", "Letisztult"
-                    }
-                },
-                new QuestionModel {
-                    QuestionNumber = 6,
-                    QuestionText   = "Szereted, ha mások megjegyzik az illatodat?",
-                    Answers        = new List<string>
-                    {
-                        "Igen, szeretem, ha feltűnő",
-                        "Nem, inkább csak én érezzem",
-                        "Valami a kettő között lenne jó"
-                    }
-                },
-                new QuestionModel {
-                    QuestionNumber = 7,
-                    QuestionText   = "Mennyi ideig tartson az illat?",
-                    Answers        = new List<string>
-                    {
-                        "Nem baj, ha hamar elillan, csak legyen friss",
-                        "Fontos, hogy egész nap tartson",
-                        "Nincs preferenciám"
-                    }
-                },
-                
-                
-            };
+                var qRepo = ctx.GetRepository<PerfumeQuestion>();
+                var aRepo = ctx.GetRepository<PerfumeAnswer>();
 
-            if (id < 1 || id > questions.Count)
-                return RedirectToAction("Eredmeny");
+                // 🔹 Dinamikus kérdésszám
+                int totalCount = qRepo.Get().Count();
+                ViewBag.TotalQuestions = totalCount;
 
-            return View("Kerdes", questions[id - 1]);
+                // 🔹 Aktuális kérdés
+                var question = qRepo.Find("WHERE SortOrder = @0", id).FirstOrDefault();
+                if (question == null)
+                    return RedirectToAction("Eredmeny");
+
+                // 🔹 Mindegyik válaszlehetőség betöltése
+                var answers = aRepo
+                    .Find("WHERE QuestionID = @0 ORDER BY SortOrder", question.QuestionID)
+                    .ToList();
+
+                var model = new QuestionModel
+                {
+                    QuestionNumber = id,
+                    QuestionText = question.QuestionText,
+                    Answers = answers
+                };
+
+                return View("Kerdes", model);
+            }
         }
 
-        // 3) POST Kérdés – válasz gyűjtés és lapozás a DNN URL-generátorral
         [HttpPost]
         public ActionResult Kerdes(int id = 1, string valasz = null)
         {
-            const string key = "IllatValaszok";
-            var list = Session[key] as List<string> ?? new List<string>();
+            const string sessionKey = "Illatmodul_Valaszok";
+            var userId = UserController.Instance.GetCurrentUserInfo().UserID;
 
-            if (!string.IsNullOrEmpty(valasz))
+            using (var ctx = DataContext.Instance())
             {
-                list.Add(valasz);
-                Session[key] = list;
+                var answerRepo = ctx.GetRepository<PerfumeUserAnswer>();
+
+                // Ha ez az 1. kérdés, töröljük a korábbi válaszokat (DB-ből és Session-ből)
+                if (id == 1)
+                {
+                    answerRepo.Delete("WHERE ModuleId = @0 AND UserID = @1",
+                                      ModuleContext.ModuleId, userId);
+                    Session.Remove(sessionKey);
+                }
+
+                // Ha van új válasz, elmentjük Session-be és DB-be
+                if (!string.IsNullOrEmpty(valasz))
+                {
+                    // 1.a) Session
+                    var list = Session[sessionKey] as List<string> ?? new List<string>();
+                    list.Add(valasz);
+                    Session[sessionKey] = list;
+
+                    // 1.b) DB-be
+                    answerRepo.Insert(new PerfumeUserAnswer
+                    {
+                        ModuleId = ModuleContext.ModuleId,
+                        UserID = userId,
+                        QuestionID = id,
+                        AnswerValue = valasz,
+                        CreatedOn = DateTime.Now
+                    });
+                }
             }
 
-            var next = id + 1;
-            if (next <= 7)
+            // 2) Következő kérdés számítása
+            int next = id + 1;
+            using (var ctx = DataContext.Instance())
             {
-                string url = Globals.NavigateURL(
-                    PortalSettings.ActiveTab.TabID,
-                    "Kerdes",
-                    $"mid={ModuleContext.ModuleId}",
-                    $"id={next}"
-                );
-                return Redirect(url);
+                int total = ctx.GetRepository<PerfumeQuestion>().Get().Count();
+                if (next <= total)
+                {
+                    // Ha még maradt kérdés, irány a következő
+                    string url = Globals.NavigateURL(
+                        PortalSettings.ActiveTab.TabID,
+                        "Kerdes",
+                        "mid=" + ModuleContext.ModuleId,
+                        "id=" + next
+                    );
+                    return Redirect(url);
+                }
             }
 
+            // 3) Ha elfogytak a kérdések, eredményre ugrunk
             string eredmenyUrl = Globals.NavigateURL(
                 PortalSettings.ActiveTab.TabID,
                 "Eredmeny",
-                $"mid={ModuleContext.ModuleId}"
+                "mid=" + ModuleContext.ModuleId
             );
             return Redirect(eredmenyUrl);
         }
 
-        // 4) Eredmény oldal – két legtöbb pontot elért alkategória + profilba mentés
+
+
+        // 4) Eredmény – pontozás a ValueCode alapján + profilba mentés
         public ActionResult Eredmeny()
         {
             try
             {
-                var answers = Session["IllatValaszok"] as List<string>;
-                if (answers == null)
+                // 1) Aktuális felhasználó
+                var userId = UserController.Instance.GetCurrentUserInfo().UserID;
+                List<string> answerCodes;
+
+                using (var ctx = DataContext.Instance())
                 {
-                    answers = new List<string>();
+                    // 2) Lekérdezzük a PerfumeUserAnswer táblából a válaszokat
+                    var answerRepo = ctx.GetRepository<PerfumeUserAnswer>();
+                    var answers = answerRepo
+                        .Find("WHERE ModuleId = @0 AND UserID = @1 ORDER BY QuestionID",
+                              ModuleContext.ModuleId, userId)
+                        .ToList();
+
+                    answerCodes = answers.Select(a => a.AnswerValue).ToList();
+
+                    // 3) Pontozás előre definiált kategóriák szerint
+                    var categories = new[]
+                    {
+                "Fás illatok","Friss illatok","Fűszeres illatok","Púderes illatok",
+                "Édes illatok","Gyümölcsös illatok","Orientális illatok","Virágos illatok"
+            };
+                    var scores = categories
+                        .ToDictionary(c => c, c => 0, StringComparer.InvariantCultureIgnoreCase);
+                    foreach (var code in answerCodes)
+                    {
+                        if (!string.IsNullOrEmpty(code) && scores.ContainsKey(code))
+                            scores[code]++;
+                    }
+
+                    // 4) A két legtöbb pontot kapott kategória
+                    var topCategories = scores
+                        .OrderByDescending(kvp => kvp.Value)
+                        .Take(2)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
+
+                    // 5) Mentés a felhasználó profiljába
+                    var profileRepo = ctx.GetRepository<UserProfileData>();
+                    SaveProfileValue(profileRepo, userId, 67, topCategories.ElementAtOrDefault(0));
+                    SaveProfileValue(profileRepo, userId, 68, topCategories.ElementAtOrDefault(1));
+
+                    
+                    ViewBag.TopCategories = topCategories;
                 }
 
-                var categories = new[]
-                {
-            "Fás illatok", "Friss illatok", "Fűszeres illatok", "Púderes illatok",
-            "Édes illatok", "Gyümölcsös illatok", "Orientális illatok", "Virágos illatok"
-        };
+                // 6) (Opcionális) ürítjük a sessiont is
+                Session.Remove("Illatmodul_Valaszok");
 
-                var map = new Dictionary<string, string[]>(StringComparer.InvariantCultureIgnoreCase)
-        {
-            { "Friss, citrusos", new[]{ "Friss illatok" } },
-            { "Virágos", new[]{ "Virágos illatok" } },
-            { "Édes (vanília, karamell)", new[]{ "Édes illatok" } },
-            { "Meleg, fűszeres", new[]{ "Fűszeres illatok" } },
-            { "Sportos", new[]{ "Friss illatok", "Fás illatok" } },
-            { "Elegáns", new[]{ "Púderes illatok", "Orientális illatok" } },
-            { "Romantikus", new[]{ "Virágos illatok", "Édes illatok" } },
-            { "Fiatalos", new[]{ "Gyümölcsös illatok", "Friss illatok" } },
-            { "Letisztult", new[]{ "Púderes illatok", "Fás illatok" } },
-            { "Igen, szeretem, ha feltűnő", new[]{ "Orientális illatok" } },
-            { "Nem, inkább csak én érezzem", new[]{ "Friss illatok" } },
-            { "Valami a kettő között lenne jó", new[]{ "Gyümölcsös illatok", "Édes illatok" } },
-            { "Nem baj, ha hamar elillan, csak legyen friss", new[]{ "Friss illatok" } },
-            { "Fontos, hogy egész nap tartson", new[]{ "Orientális illatok" } },
-            { "Nincs preferenciám", new[]{ "Gyümölcsös illatok", "Édes illatok" } },
-        };
+                // 7) Nézetnek átadott teljes válaszlista (ha szükséges)
+                ViewBag.AllAnswers = answerCodes;
 
-                var scores = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
-                foreach (var cat in categories) scores[cat] = 0;
-
-                foreach (var answer in answers)
-                {
-                    if (map.ContainsKey(answer))
-                    {
-                        var matched = map[answer];
-                        foreach (var c in matched)
-                        {
-                            if (scores.ContainsKey(c)) scores[c]++;
-                        }
-                    }
-                }
-
-                string top1 = null;
-                string top2 = null;
-                int max1 = -1, max2 = -1;
-
-                foreach (var kvp in scores)
-                {
-                    if (kvp.Value > max1)
-                    {
-                        max2 = max1;
-                        top2 = top1;
-                        max1 = kvp.Value;
-                        top1 = kvp.Key;
-                    }
-                    else if (kvp.Value > max2)
-                    {
-                        max2 = kvp.Value;
-                        top2 = kvp.Key;
-                    }
-                }
-
-                var user = UserController.Instance.GetCurrentUserInfo();
-                var userId = user.UserID;
-
-                var ctx = DotNetNuke.Data.DataContext.Instance();
-                var repo = ctx.GetRepository<Illamdul.Dnn.Illatmodul.Models.UserProfileData>();
-
-                int topId = 66; // TopIllatkategoria
-                int secId = 67; // SecIllatkategoria
-
-                if (!string.IsNullOrEmpty(top1))
-                {
-                    var top = repo.Find("WHERE UserID = @0 AND PropertyDefinitionID = @1", userId, topId).FirstOrDefault();
-                    if (top == null)
-                    {
-                        top = new Illamdul.Dnn.Illatmodul.Models.UserProfileData
-                        {
-                            UserID = userId,
-                            PropertyDefinitionID = topId,
-                            PropertyValue = top1,
-                            PropertyText = top1, // új!
-                            Visibility = 2,
-                            LastUpdatedDate = DateTime.Now
-                        };
-                        repo.Insert(top);
-                    }
-                    else
-                    {
-                        top.PropertyValue = top1;
-                        top.PropertyText = top1; // új!
-                        top.LastUpdatedDate = DateTime.Now;
-                        repo.Update(top);
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(top2))
-                {
-                    var sec = repo.Find("WHERE UserID = @0 AND PropertyDefinitionID = @1", userId, secId).FirstOrDefault();
-                    if (sec == null)
-                    {
-                        sec = new Illamdul.Dnn.Illatmodul.Models.UserProfileData
-                        {
-                            UserID = userId,
-                            PropertyDefinitionID = secId,
-                            PropertyValue = top2,
-                            PropertyText = top2, // új!
-                            Visibility = 2,
-                            LastUpdatedDate = DateTime.Now
-                        };
-                        repo.Insert(sec);
-                    }
-                    else
-                    {
-                        sec.PropertyValue = top2;
-                        sec.PropertyText = top2; // új!
-                        sec.LastUpdatedDate = DateTime.Now;
-                        repo.Update(sec);
-                    }
-                }
-
-                var resultList = new List<string>();
-                if (!string.IsNullOrEmpty(top1)) resultList.Add(top1);
-                if (!string.IsNullOrEmpty(top2)) resultList.Add(top2);
-                ViewBag.TopCategories = resultList;
-
-                Session.Remove("IllatValaszok");
                 return View("Eredmeny");
             }
             catch (Exception ex)
             {
-                return Content("❌ Hiba történt:<br/><strong>" + ex.Message + "</strong><br/><pre>" + ex.StackTrace + "</pre>", "text/html");
+                return Content(
+                    "❌ Hiba történt:<br/><strong>" + ex.Message + "</strong>" +
+                    "<br/><pre>" + ex.StackTrace + "</pre>",
+                    "text/html"
+                );
             }
         }
 
+        // Segédfüggvény a profilérték mentéséhez (marad változatlan)
+        private void SaveProfileValue(
+            IRepository<UserProfileData> repo,
+            int userId,
+            int propertyId,
+            string value
+        )
+        {
+            if (string.IsNullOrEmpty(value)) return;
 
+            var existing = repo
+                .Find("WHERE UserID = @0 AND PropertyDefinitionID = @1", userId, propertyId)
+                .FirstOrDefault();
+
+            if (existing == null)
+            {
+                repo.Insert(new UserProfileData
+                {
+                    UserID = userId,
+                    PropertyDefinitionID = propertyId,
+                    PropertyValue = value,
+                    PropertyText = value,
+                    Visibility = 2,
+                    LastUpdatedDate = DateTime.Now
+                });
+            }
+            else
+            {
+                existing.PropertyValue = value;
+                existing.PropertyText = value;
+                existing.LastUpdatedDate = DateTime.Now;
+                repo.Update(existing);
+            }
+        }
     }
+
 }
